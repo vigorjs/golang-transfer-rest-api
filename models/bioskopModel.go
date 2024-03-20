@@ -29,7 +29,7 @@ type Jadwal struct {
 	Tanggal    time.Time // Jadwal's date
 	JamTayang  time.Time // Jadwal's start time
 	JamSelesai time.Time // Jadwal's end time
-	Kursis     []Kursi   // One-to-many relationship to kursis
+	Kursi      []Kursi   // One-to-many relationship to kursis
 	Film       Film
 	Bioskop    Bioskop
 }
@@ -39,16 +39,17 @@ type Kursi struct {
 	JadwalID    uint   // Foreign key to Jadwal's ID
 	NomorKursi  string // Kursi's seat number
 	IsAvailable bool   `gorm:"default:true"` // Kursi's availability
+	Jadwal      Jadwal
 }
 
 type Booking struct {
 	gorm.Model
 	UserID        uint      // Foreign key to User's ID
-	User          User      // Many-to-one relationship to User
 	JadwalID      uint      // Foreign key to Jadwal's ID
 	PaymentStatus string    // Booking's payment status
 	BookingDate   time.Time // Booking's date and time
-	Kursis        []Kursi   `gorm:"many2many:booking_kursis"` // Many-to-many relationship to kursis
+	User          User      // Many-to-one relationship to User
+	Kursi         []Kursi   `gorm:"many2many:booking_kursis"` // Many-to-many relationship to kursis
 }
 
 type Transaksi struct {

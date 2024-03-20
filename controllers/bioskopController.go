@@ -221,6 +221,27 @@ func CreateJadwal(c *gin.Context) {
 		})
 		return
 	}
+	jadwalID := jadwal.ID
+	kursis := []models.Kursi{
+		{JadwalID: jadwalID, NomorKursi: "A1", IsAvailable: true},
+		{JadwalID: jadwalID, NomorKursi: "A2", IsAvailable: true},
+		{JadwalID: jadwalID, NomorKursi: "A3", IsAvailable: true},
+		{JadwalID: jadwalID, NomorKursi: "A4", IsAvailable: true},
+		{JadwalID: jadwalID, NomorKursi: "A5", IsAvailable: true},
+		{JadwalID: jadwalID, NomorKursi: "B1", IsAvailable: true},
+		{JadwalID: jadwalID, NomorKursi: "B2", IsAvailable: true},
+		{JadwalID: jadwalID, NomorKursi: "B3", IsAvailable: true},
+		{JadwalID: jadwalID, NomorKursi: "B4", IsAvailable: true},
+		{JadwalID: jadwalID, NomorKursi: "B5", IsAvailable: true},
+	}
+	for _, kursi := range kursis {
+		if err := initializers.DB.Create(&kursi).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": result.Error.Error(),
+			})
+			return
+		}
+	}
 
 	c.JSON(http.StatusCreated, jadwal)
 }
@@ -310,13 +331,13 @@ func DeleteJadwal(c *gin.Context) {
 	})
 }
 
-func GetJadwalByFilmAndBioskop(c *gin.Context) {
+func GetJadwalWithKursiByFilmAndBioskop(c *gin.Context) {
 	filmID := c.Param("filmID")
 	bioskopID := c.Param("bioskopID")
 
 	var jadwals []models.Jadwal
 
-	result := initializers.DB.Preload("Film").Where("film_id = ? AND bioskop_id = ?", filmID, bioskopID).Find(&jadwals)
+	result := initializers.DB.Preload("Kursi").Preload("Film").Where("film_id = ? AND bioskop_id = ?", filmID, bioskopID).Find(&jadwals)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
@@ -324,12 +345,18 @@ func GetJadwalByFilmAndBioskop(c *gin.Context) {
 
 	var response []gin.H
 	for _, jadwal := range jadwals {
+		kursiAvailable := make([]interface{}, 0)
+		for _, kursi := range jadwal.Kursi {
+			kursiData := []interface{}{kursi.NomorKursi, kursi.IsAvailable}
+			kursiAvailable = append(kursiAvailable, kursiData)
+		}
 		jadwalData := gin.H{
-			"ID":         jadwal.ID,
-			"Tanggal":    jadwal.Tanggal,
-			"JamTayang":  jadwal.JamTayang,
-			"JamSelesai": jadwal.JamSelesai,
-			"JudulFilm":  jadwal.Film.Judul,
+			"ID":             jadwal.ID,
+			"Tanggal":        jadwal.Tanggal,
+			"JamTayang":      jadwal.JamTayang,
+			"JamSelesai":     jadwal.JamSelesai,
+			"JudulFilm":      jadwal.Film.Judul,
+			"KursiAvailable": kursiAvailable,
 		}
 		response = append(response, jadwalData)
 	}
@@ -337,7 +364,7 @@ func GetJadwalByFilmAndBioskop(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": response})
 }
 
-func GetAllJadwals(c *gin.Context) {
+func GetAllJadwal(c *gin.Context) {
 	var jadwals []models.Jadwal
 
 	if err := initializers.DB.Preload("Film").Preload("Bioskop").Find(&jadwals).Error; err != nil {
@@ -356,6 +383,149 @@ func GetAllJadwals(c *gin.Context) {
 			"Bioskop":    jadwal.Bioskop.Nama,
 		}
 		response = append(response, jadwalData)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": response})
+}
+
+func GetJadwalByID(c *gin.Context) {
+	jadwalID := c.Param("jadwalID")
+
+	var jadwal models.Jadwal
+
+	result := initializers.DB.Preload("Film").Preload("Bioskop").Preload("Kursi").First(&jadwal, jadwalID)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		return
+	}
+
+	kursiAvailable := make([]interface{}, 0)
+	for _, kursi := range jadwal.Kursi {
+		kursiData := []interface{}{kursi.NomorKursi, kursi.IsAvailable}
+		kursiAvailable = append(kursiAvailable, kursiData)
+	}
+
+	response := gin.H{
+		"ID":             jadwal.ID,
+		"Tanggal":        jadwal.Tanggal,
+		"JamTayang":      jadwal.JamTayang,
+		"JamSelesai":     jadwal.JamSelesai,
+		"JudulFilm":      jadwal.Film.Judul,
+		"KursiAvailable": kursiAvailable,
+		"Bioskop":        jadwal.Bioskop.Nama,
+		"Lokasi":         jadwal.Bioskop.Lokasi,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// Booking
+func CreateBooking(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		return
+	}
+	userID := user.(models.User).ID
+
+	var body struct {
+		UserID        uint   `json:"user_id"`
+		JadwalID      uint   `json:"jadwal_id"`
+		BookingDate   string `json:"booking_date"`
+		PaymentStatus string `json:"payment_status"`
+		KursiID       []uint `json:"kursi_id"`
+	}
+
+	if err := c.Bind(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "failed to send Book request",
+		})
+		return
+	}
+	// Validasi jika kursi yg di req diluar dari kursi_id yang sesuai dengan jadwal yang di request
+	for _, kursiID := range body.KursiID {
+		var count int64
+		if err := initializers.DB.Model(&models.Kursi{}).Where("id = ? AND jadwal_id = ?", kursiID, body.JadwalID).Count(&count).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check kursi"})
+			return
+		}
+		if count == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "kursi yg di req diluar dari kursi_id yang sesuai dengan jadwal yang di request"})
+			return
+		}
+	}
+	bookingdate, err := time.Parse("2006-01-02", body.BookingDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid date format for tanggal",
+		})
+		return
+	}
+
+	booking := models.Booking{
+		UserID:        userID,
+		JadwalID:      body.JadwalID,
+		PaymentStatus: body.PaymentStatus,
+		BookingDate:   bookingdate,
+	}
+
+	// Menyimpan booking ke dalam database
+	if err := initializers.DB.Create(&booking).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create booking"})
+		return
+	}
+
+	// Menyimpan kursi-kursi yang dipilih ke dalam tabel booking_kursis
+	for _, kursiID := range body.KursiID {
+		var kursi models.Kursi
+		//validasi ketersediaan kursi
+		if err := initializers.DB.Where("id = ? AND jadwal_id = ?", kursiID, body.JadwalID).First(&kursi).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to find kursi"})
+			return
+		}
+		if !kursi.IsAvailable {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "kursi is not available"})
+			return
+		}
+
+		if err := initializers.DB.Exec("INSERT INTO booking_kursis (booking_id, kursi_id) VALUES (?, ?)", booking.ID, kursiID).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create booking_kursis"})
+			return
+		}
+		if err := initializers.DB.Model(&models.Kursi{}).Where("id = ? AND jadwal_id = ?", kursiID, booking.JadwalID).Update("is_available", false).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update kursi status"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Booking created successfully", "data": booking})
+}
+
+func GetAllBooking(c *gin.Context) {
+	var bookings []models.Booking
+
+	if err := initializers.DB.Preload("Kursi").Find(&bookings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var response []gin.H
+	for _, booking := range bookings {
+
+		bookedKursi := make([]string, 0)
+		for _, kursi := range booking.Kursi {
+			bookedKursi = append(bookedKursi, kursi.NomorKursi)
+		}
+
+		bookingData := gin.H{
+			"ID":            booking.ID,
+			"UserID":        booking.UserID,
+			"JadwalID":      booking.JadwalID,
+			"BookingDate":   booking.BookingDate,
+			"PaymentStatus": booking.PaymentStatus,
+			"Kursi":         bookedKursi,
+		}
+		response = append(response, bookingData)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": response})

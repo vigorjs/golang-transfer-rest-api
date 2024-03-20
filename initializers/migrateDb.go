@@ -14,27 +14,42 @@ func MigrateDb() {
 	DB.AutoMigrate(&models.Kursi{})
 	DB.AutoMigrate(&models.Transaksi{})
 }
-func SeedKursi() {
-	// Data kursi yang akan di-generate
-	kursis := []models.Kursi{
-		{JadwalID: 1, NomorKursi: "A1", IsAvailable: true},
-		{JadwalID: 1, NomorKursi: "A2", IsAvailable: true},
-		{JadwalID: 1, NomorKursi: "A3", IsAvailable: true},
-		{JadwalID: 2, NomorKursi: "B1", IsAvailable: true},
-		{JadwalID: 2, NomorKursi: "B2", IsAvailable: true},
-		{JadwalID: 1, NomorKursi: "A4", IsAvailable: true},
-		{JadwalID: 1, NomorKursi: "A5", IsAvailable: true},
-		{JadwalID: 1, NomorKursi: "A6", IsAvailable: true},
-		{JadwalID: 2, NomorKursi: "B3", IsAvailable: true},
-		{JadwalID: 2, NomorKursi: "B4", IsAvailable: true},
+func SeedBioskop() {
+	bioskops := []models.Bioskop{
+		{Nama: "CGV", Lokasi: "Surabaya"},
+		{Nama: "XXI", Lokasi: "Semarang"},
+		{Nama: "Samehadaku", Lokasi: "Jogja"},
+		{Nama: "Rajawali", Lokasi: "Bandung"},
+		{Nama: "Trans Studio", Lokasi: "Jakarta"},
 	}
 
-	// Loop untuk menyimpan data kursi ke dalam database
-	for _, kursi := range kursis {
-		if err := DB.Create(&kursi).Error; err != nil {
-			fmt.Printf("Failed to create kursi: %v\n", err)
+	// Loop untuk menyimpan data kursi ke dalam db
+	for _, bioskop := range bioskops {
+		if err := DB.Create(&bioskop).Error; err != nil {
+			fmt.Printf("Failed to seed data bioskop: %v\n", err)
 		}
 	}
+}
 
-	fmt.Println("Seeder for Kursi completed")
+func SeedFilm() {
+	var bioskops []models.Bioskop
+	if err := DB.Find(&bioskops).Error; err != nil {
+		fmt.Printf("Failed to retrieve bioskops: %v\n", err)
+		return
+	}
+
+	for _, bioskop := range bioskops {
+		films := []models.Film{
+			{Judul: "Harry Potter", BioskopID: bioskop.ID},
+			{Judul: "Fast And Furious", BioskopID: bioskop.ID},
+			{Judul: "Spongebob", BioskopID: bioskop.ID},
+			{Judul: "Insidious", BioskopID: bioskop.ID},
+			{Judul: "Shutter Island", BioskopID: bioskop.ID},
+		}
+		for _, film := range films {
+			if err := DB.Create(&film).Error; err != nil {
+				fmt.Printf("Failed to seed data film: %v\n", err)
+			}
+		}
+	}
 }
