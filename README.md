@@ -10,7 +10,7 @@ update : Untuk contoh implementasinya sudah saya update agar saat user booking/h
 
 * satu user dapat pesan multi tiket
 review : untuk dapat melakukan ini juga sepengalaman saya dilihat dari desain database yang saya lampirkan sebelumnya seharusnya bisa untuk di implementasikan pemesanan multi tiket oleh satu user yang mana pada desain tersebut telah terdapat relasi many-to-many dari tabel Booking dan Kursi yang dimana dari relasi tersebut menghasilkan tabel booking_kursi yang bisa digunakan sebagai mapping.
-update : untuk contoh implementasinya, saya membuat API untuk Booking dimana untuk menghandle pemesanan multi tiket diatur sesuai logicnya didalam fungsi API tersebut dengan tahap2 kurang lebih seperti berikut : 
+update : untuk contoh implementasinya, saya membuat API untuk Booking dimana untuk menghandle pemesanan multi tiket diatur sesuai logicnya didalam fungsi API tersebut dengan tahap2 kurang lebih bisa di implementasi seperti berikut : 
 get data kursi yang tersedia -> kemudian, set request data Booking sesuai modelnya dan set untuk request dari data kursi dalam bentuk array -> validasi-> kemudian query untuk data Booking dan data kursi secara terpisah ke masing2 database. 
 
 
