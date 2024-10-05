@@ -1,0 +1,299 @@
+definitions:
+  controllers.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  controllers.MerchantRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  controllers.SignUpRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  controllers.TransactionRequest:
+    properties:
+      gross_amount:
+        type: number
+      merchant_id:
+        type: integer
+    required:
+    - gross_amount
+    - merchant_id
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user and return a JWT token
+      parameters:
+      - description: Login request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully logged in
+        "400":
+          description: Bad request
+      summary: User login
+      tags:
+      - Auth
+  /api/v1/auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user and return a JWT token
+      parameters:
+      - description: Sign Up request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.SignUpRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User successfully created
+        "400":
+          description: Bad request
+      summary: Register a new user
+      tags:
+      - Auth
+  /api/v1/logout:
+    post:
+      description: Logout a user with token
+      parameters:
+      - description: Bearer token
+        in: header
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+      summary: Logout a user
+      tags:
+      - Auth
+  /api/v1/merchants:
+    get:
+      description: Retrieve a list of all merchants
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of merchants
+        "500":
+          description: Internal server error
+      summary: Get all merchants
+      tags:
+      - Merchant
+    post:
+      consumes:
+      - application/json
+      description: Create a new merchant for an authenticated user
+      parameters:
+      - description: Merchant request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.MerchantRequest'
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Merchant created successfully
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+      summary: Create a new merchant
+      tags:
+      - Merchant
+  /api/v1/merchants/{id}:
+    delete:
+      description: Delete a merchant by its ID
+      parameters:
+      - description: Merchant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Merchant deleted successfully
+        "400":
+          description: Invalid ID
+        "404":
+          description: Merchant not found
+      summary: Delete a merchant by ID
+      tags:
+      - Merchant
+    get:
+      description: Retrieve a merchant by its ID
+      parameters:
+      - description: Merchant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Merchant found
+        "400":
+          description: Invalid ID
+        "404":
+          description: Merchant not found
+      summary: Get a merchant by ID
+      tags:
+      - Merchant
+    put:
+      consumes:
+      - application/json
+      description: Update an existing merchant by its ID
+      parameters:
+      - description: Merchant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Merchant update request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.MerchantRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Merchant updated successfully
+        "400":
+          description: Invalid ID or request body
+        "404":
+          description: Merchant not found
+      summary: Update a merchant by ID
+      tags:
+      - Merchant
+  /api/v1/transaction:
+    post:
+      consumes:
+      - application/json
+      description: Create a new transaction for a merchant
+      parameters:
+      - description: Transaction request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.TransactionRequest'
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transaction created successfully
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+      summary: Create a new transaction
+      tags:
+      - Transaction
+  /api/v1/transaction/{id}:
+    delete:
+      description: Delete a transaction by its ID
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Success Delete Transaction
+        "400":
+          description: Error
+        "404":
+          description: Error
+      summary: Delete a transaction by ID
+      tags:
+      - Transaction
+    get:
+      description: Retrieve a transaction by its ID
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Sucess
+        "400":
+          description: Error
+        "404":
+          description: Error
+      summary: Get a transaction by ID
+      tags:
+      - Transaction
+  /api/v1/transactions:
+    get:
+      description: Retrieve a list of all transactions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+        "500":
+          description: Error
+      summary: Get all transactions
+      tags:
+      - Transaction
+swagger: "2.0"

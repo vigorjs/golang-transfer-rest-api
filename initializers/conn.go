@@ -2,7 +2,6 @@ package initializers
 
 import (
 	"os"
-
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

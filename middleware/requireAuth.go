@@ -1,46 +1,58 @@
 package middleware
 
 import (
-	"bioskop_golang/initializers"
-	"bioskop_golang/models"
-	"fmt"
+	"golang-rest-api/initializers"
+	"golang-rest-api/model"
+	"golang-rest-api/service"
 	"net/http"
-	"os"
-	"time"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 func RequireAuth(c *gin.Context) {
-	//get cookie dari req
-	tokenString, err := c.Cookie("Auth_Token")
-	if err != nil {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
 
-	//validasi
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signin method: %v", token.Header["alg"])
-		}
-		return []byte(os.Getenv("SECRET")), nil
-	})
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		//cek expired
-		if float64(time.Now().Unix()) > claims["expired"].(float64) {
-			c.AbortWithStatus(http.StatusUnauthorized)
-		}
-		//index query user
-		var user models.User
-		initializers.DB.First(&user, claims["subject"])
-		if user.ID == 0 {
-			c.AbortWithStatus(http.StatusUnauthorized)
-		}
-		//masukkan ke request
-		c.Set("user", user)
-		c.Next()
-	} else {
+	tokenParts := strings.Split(authHeader, " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
 		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
+
+	tokenString := tokenParts[1]
+	tokenService := service.NewTokenService()
+	token, err := tokenService.ValidateToken(tokenString)
+
+	if err != nil || !token.Valid {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	var user model.User
+	if err := initializers.DB.First(&user, claims["subject"]).Error; err != nil {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	var tokenRecord model.Token
+	if err := initializers.DB.Where("user_id = ? AND token = ? AND status = ?", user.ID, tokenString, "active").First(&tokenRecord).Error; err != nil {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	c.Set("user", user)
+	c.Set("userID", user.ID)
+	c.Set("token", tokenString)
+	c.Next()
 }
